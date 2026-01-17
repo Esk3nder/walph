@@ -15,7 +15,7 @@ An autonomous AI coding loop that runs AI assistants (Claude Code, OpenCode, Cod
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/ralphy.git
+git clone https://github.com/michaelshimeles/ralphy.git
 cd ralphy
 chmod +x ralphy.sh
 
