@@ -11,7 +11,7 @@ set -euo pipefail
 # Check bash version (need 4.0+ for associative arrays and other features)
 if [[ -n "${BASH_VERSINFO:-}" ]] && [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
   echo "ERROR: Ralphy requires bash 4.0 or later. Current version: ${BASH_VERSION}"
-  echo "Install a newer bash with: apt-get install bash (Debian/Ubuntu) or yum install bash (RHEL/CentOS)"
+  echo "On Linux, install a newer bash with: apt-get install bash (Debian/Ubuntu) or yum install bash (RHEL/CentOS)"
   exit 1
 fi
 
