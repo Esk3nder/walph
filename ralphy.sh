@@ -12,7 +12,13 @@ set -euo pipefail
 # CONFIGURATION & DEFAULTS
 # ============================================
 
-VERSION="3.3.0"
+VERSION="4.0.0"
+
+# Brownfield mode (single-task without PRD)
+RALPHY_DIR=".ralphy"
+SINGLE_TASK=""
+INIT_MODE=false
+AUTO_COMMIT=true
 
 # Runtime options
 SKIP_TESTS=false
@@ -106,6 +112,314 @@ slugify() {
 }
 
 # ============================================
+# BROWNFIELD MODE (.ralphy/ configuration)
+# ============================================
+
+# Initialize .ralphy/ directory with config files
+init_ralphy_config() {
+  if [[ -d "$RALPHY_DIR" ]]; then
+    log_warn "$RALPHY_DIR already exists"
+    read -p "Overwrite? [y/N] " -n 1 -r
+    echo
+    [[ ! $REPLY =~ ^[Yy]$ ]] && exit 0
+  fi
+
+  mkdir -p "$RALPHY_DIR"
+
+  # Detect basic project info for context.md
+  local lang="Unknown"
+  local framework="Unknown"
+  local test_cmd=""
+
+  if [[ -f "package.json" ]]; then
+    lang="JavaScript/TypeScript"
+    # Detect framework from dependencies
+    local deps
+    deps=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' package.json 2>/dev/null || true)
+    [[ "$deps" == *"next"* ]] && framework="Next.js"
+    [[ "$deps" == *"react"* ]] && [[ "$framework" == "Unknown" ]] && framework="React"
+    [[ "$deps" == *"express"* ]] && framework="Express"
+    [[ "$deps" == *"fastify"* ]] && framework="Fastify"
+    [[ "$deps" == *"nest"* ]] && framework="NestJS"
+    # Detect test command
+    [[ "$deps" == *"jest"* ]] && test_cmd="npm test"
+    [[ "$deps" == *"vitest"* ]] && test_cmd="npm test"
+    [[ "$deps" == *"bun"* ]] && test_cmd="bun test"
+  elif [[ -f "pyproject.toml" ]] || [[ -f "requirements.txt" ]]; then
+    lang="Python"
+    [[ -f "pyproject.toml" ]] && grep -q "fastapi" pyproject.toml 2>/dev/null && framework="FastAPI"
+    [[ -f "pyproject.toml" ]] && grep -q "django" pyproject.toml 2>/dev/null && framework="Django"
+    test_cmd="pytest"
+  elif [[ -f "go.mod" ]]; then
+    lang="Go"
+    test_cmd="go test ./..."
+  elif [[ -f "Cargo.toml" ]]; then
+    lang="Rust"
+    test_cmd="cargo test"
+  fi
+
+  # Create context.md
+  cat > "$RALPHY_DIR/context.md" << EOF
+# Project Context
+
+Brief summary for AI agents. Edit this to add project-specific context.
+
+## Overview
+- **Language:** $lang
+- **Framework:** $framework
+- **Description:** [Add a 1-2 sentence project description]
+
+## Key Directories
+- \`src/\` - Main source code
+- \`tests/\` - Test files
+
+## Notes
+[Add any important context the AI should know]
+EOF
+
+  # Create config.yaml
+  cat > "$RALPHY_DIR/config.yaml" << EOF
+# Ralphy Configuration
+# User preferences and rules that persist across sessions
+
+# Commands
+commands:
+  test: "${test_cmd:-npm test}"
+  lint: ""
+  build: ""
+
+# Rules - instructions the AI must follow
+# These are injected into every prompt
+rules:
+  # - "Always use TypeScript strict mode"
+  # - "Follow the error handling pattern in src/utils/errors.ts"
+  # - "All API endpoints must have input validation"
+
+# Boundaries - files/folders with special handling
+boundaries:
+  # never_touch:
+  #   - "src/legacy/**"
+  #   - "migrations/**"
+  # always_test:
+  #   - "src/api/**"
+  #   - "src/services/**"
+
+# Preferences
+preferences:
+  auto_commit: true
+  branch_per_task: false
+EOF
+
+  # Create history.md
+  cat > "$RALPHY_DIR/history.md" << EOF
+# Task History
+
+Log of completed tasks for reference.
+
+---
+EOF
+
+  # Create .ralphyignore if it doesn't exist
+  if [[ ! -f ".ralphyignore" ]]; then
+    cat > ".ralphyignore" << EOF
+# Files and directories to exclude from Ralphy's context
+node_modules/
+dist/
+build/
+.git/
+*.log
+*.lock
+EOF
+  fi
+
+  log_success "Initialized $RALPHY_DIR/"
+  echo ""
+  echo "Created:"
+  echo "  ${CYAN}$RALPHY_DIR/config.yaml${RESET}  - Your rules and preferences"
+  echo "  ${CYAN}$RALPHY_DIR/context.md${RESET}   - Project context for AI"
+  echo "  ${CYAN}$RALPHY_DIR/history.md${RESET}   - Task history log"
+  echo "  ${CYAN}.ralphyignore${RESET}            - Files to exclude"
+  echo ""
+  echo "Next steps:"
+  echo "  1. Edit ${CYAN}$RALPHY_DIR/config.yaml${RESET} to add your rules"
+  echo "  2. Edit ${CYAN}$RALPHY_DIR/context.md${RESET} to describe your project"
+  echo "  3. Run ${CYAN}ralphy \"your task here\"${RESET}"
+}
+
+# Load rules from config.yaml
+load_ralphy_rules() {
+  local config_file="$RALPHY_DIR/config.yaml"
+  [[ ! -f "$config_file" ]] && return
+
+  # Extract rules as a newline-separated list
+  if command -v yq &>/dev/null; then
+    yq -r '.rules // [] | .[]' "$config_file" 2>/dev/null || true
+  fi
+}
+
+# Load boundaries from config.yaml
+load_ralphy_boundaries() {
+  local config_file="$RALPHY_DIR/config.yaml"
+  local boundary_type="$1"  # never_touch or always_test
+  [[ ! -f "$config_file" ]] && return
+
+  if command -v yq &>/dev/null; then
+    yq -r ".boundaries.$boundary_type // [] | .[]" "$config_file" 2>/dev/null || true
+  fi
+}
+
+# Load test command from config
+load_test_command() {
+  local config_file="$RALPHY_DIR/config.yaml"
+  [[ ! -f "$config_file" ]] && echo "" && return
+
+  if command -v yq &>/dev/null; then
+    yq -r '.commands.test // ""' "$config_file" 2>/dev/null || echo ""
+  else
+    echo ""
+  fi
+}
+
+# Load project context
+load_project_context() {
+  local context_file="$RALPHY_DIR/context.md"
+  [[ -f "$context_file" ]] && cat "$context_file"
+}
+
+# Log task to history
+log_task_history() {
+  local task="$1"
+  local status="$2"  # completed, failed
+  local history_file="$RALPHY_DIR/history.md"
+
+  [[ ! -f "$history_file" ]] && return
+
+  local timestamp
+  timestamp=$(date '+%Y-%m-%d %H:%M')
+  local icon="✓"
+  [[ "$status" == "failed" ]] && icon="✗"
+
+  echo "- [$icon] $timestamp - $task" >> "$history_file"
+}
+
+# Build prompt with brownfield context
+build_brownfield_prompt() {
+  local task="$1"
+  local prompt=""
+
+  # Add project context if available
+  local context
+  context=$(load_project_context)
+  if [[ -n "$context" ]]; then
+    prompt+="## Project Context
+$context
+
+"
+  fi
+
+  # Add rules if available
+  local rules
+  rules=$(load_ralphy_rules)
+  if [[ -n "$rules" ]]; then
+    prompt+="## Rules (you MUST follow these)
+$rules
+
+"
+  fi
+
+  # Add boundaries
+  local never_touch
+  never_touch=$(load_ralphy_boundaries "never_touch")
+  if [[ -n "$never_touch" ]]; then
+    prompt+="## Boundaries
+Do NOT modify these files/directories:
+$never_touch
+
+"
+  fi
+
+  # Add the task
+  prompt+="## Task
+$task
+
+## Instructions
+1. Implement the task described above
+2. Write tests if appropriate
+3. Ensure the code works correctly
+4. Commit your changes with a descriptive message
+
+Keep changes focused and minimal. Do not refactor unrelated code."
+
+  echo "$prompt"
+}
+
+# Run a single brownfield task
+run_brownfield_task() {
+  local task="$1"
+
+  echo ""
+  echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo "${BOLD}Task:${RESET} $task"
+  echo "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo ""
+
+  local prompt
+  prompt=$(build_brownfield_prompt "$task")
+
+  # Create temp file for output
+  local output_file
+  output_file=$(mktemp)
+
+  log_info "Running with $AI_ENGINE..."
+
+  # Run the AI engine
+  case "$AI_ENGINE" in
+    claude)
+      claude --dangerously-skip-permissions \
+        -p "$prompt" > "$output_file" 2>&1
+      ;;
+    opencode)
+      opencode --output-format stream-json \
+        --approval-mode full-auto \
+        "$prompt" > "$output_file" 2>&1
+      ;;
+    cursor)
+      agent --dangerously-skip-permissions \
+        -p "$prompt" > "$output_file" 2>&1
+      ;;
+    qwen)
+      qwen --output-format stream-json \
+        --approval-mode yolo \
+        -p "$prompt" > "$output_file" 2>&1
+      ;;
+    droid)
+      droid exec --output-format stream-json \
+        --auto medium \
+        "$prompt" > "$output_file" 2>&1
+      ;;
+    codex)
+      codex exec --full-auto \
+        --json \
+        "$prompt" > "$output_file" 2>&1
+      ;;
+  esac
+
+  local exit_code=$?
+
+  # Log to history
+  if [[ $exit_code -eq 0 ]]; then
+    log_task_history "$task" "completed"
+    log_success "Task completed"
+  else
+    log_task_history "$task" "failed"
+    log_error "Task failed"
+  fi
+
+  rm -f "$output_file"
+  return $exit_code
+}
+
+# ============================================
 # HELP & VERSION
 # ============================================
 
@@ -114,7 +428,14 @@ show_help() {
 ${BOLD}Ralphy${RESET} - Autonomous AI Coding Loop (v${VERSION})
 
 ${BOLD}USAGE:${RESET}
-  ./ralphy.sh [options]
+  ./ralphy.sh [options]              # PRD mode (requires PRD.md)
+  ./ralphy.sh "task description"     # Single task mode (brownfield)
+  ./ralphy.sh --init                 # Initialize .ralphy/ config
+
+${BOLD}BROWNFIELD MODE:${RESET}
+  --init              Initialize .ralphy/ directory with config files
+  "task description"  Run a single task without PRD (quotes required)
+  --no-commit         Don't auto-commit after task completion
 
 ${BOLD}AI ENGINE OPTIONS:${RESET}
   --claude            Use Claude Code (default)
@@ -157,11 +478,14 @@ ${BOLD}OTHER OPTIONS:${RESET}
   --version           Show version number
 
 ${BOLD}EXAMPLES:${RESET}
+  # Brownfield mode (single tasks in existing projects)
+  ./ralphy.sh --init                       # Initialize config
+  ./ralphy.sh "add dark mode toggle"       # Run single task
+  ./ralphy.sh "fix the login bug" --cursor # Single task with Cursor
+
+  # PRD mode (task lists)
   ./ralphy.sh                              # Run with Claude Code
   ./ralphy.sh --codex                      # Run with Codex CLI
-  ./ralphy.sh --opencode                   # Run with OpenCode
-  ./ralphy.sh --cursor                     # Run with Cursor agent
-  ./ralphy.sh --droid                      # Run with Factory Droid
   ./ralphy.sh --branch-per-task --create-pr  # Feature branch workflow
   ./ralphy.sh --parallel --max-parallel 4  # Run 4 tasks concurrently
   ./ralphy.sh --yaml tasks.yaml            # Use YAML task file
@@ -302,10 +626,27 @@ parse_args() {
         show_version
         exit 0
         ;;
-      *)
+      --init)
+        INIT_MODE=true
+        shift
+        ;;
+      --no-commit)
+        AUTO_COMMIT=false
+        shift
+        ;;
+      -*)
         log_error "Unknown option: $1"
         echo "Use --help for usage"
         exit 1
+        ;;
+      *)
+        # Positional argument = single task (brownfield mode)
+        if [[ -z "$SINGLE_TASK" ]]; then
+          SINGLE_TASK="$1"
+        else
+          SINGLE_TASK="$SINGLE_TASK $1"
+        fi
+        shift
         ;;
     esac
   done
@@ -2211,17 +2552,68 @@ show_summary() {
 main() {
   parse_args "$@"
 
+  # Handle --init mode
+  if [[ "$INIT_MODE" == true ]]; then
+    init_ralphy_config
+    exit 0
+  fi
+
+  # Handle single-task (brownfield) mode
+  if [[ -n "$SINGLE_TASK" ]]; then
+    # Set up cleanup trap
+    trap cleanup EXIT
+    trap 'exit 130' INT TERM HUP
+
+    # Check basic requirements (AI engine, git)
+    case "$AI_ENGINE" in
+      claude) command -v claude &>/dev/null || { log_error "Claude Code CLI not found"; exit 1; } ;;
+      opencode) command -v opencode &>/dev/null || { log_error "OpenCode CLI not found"; exit 1; } ;;
+      cursor) command -v agent &>/dev/null || { log_error "Cursor agent CLI not found"; exit 1; } ;;
+      codex) command -v codex &>/dev/null || { log_error "Codex CLI not found"; exit 1; } ;;
+      qwen) command -v qwen &>/dev/null || { log_error "Qwen-Code CLI not found"; exit 1; } ;;
+      droid) command -v droid &>/dev/null || { log_error "Factory Droid CLI not found"; exit 1; } ;;
+    esac
+
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+      log_error "Not a git repository"
+      exit 1
+    fi
+
+    # Show brownfield banner
+    echo "${BOLD}============================================${RESET}"
+    echo "${BOLD}Ralphy${RESET} - Single Task Mode"
+    local engine_display
+    case "$AI_ENGINE" in
+      opencode) engine_display="${CYAN}OpenCode${RESET}" ;;
+      cursor) engine_display="${YELLOW}Cursor Agent${RESET}" ;;
+      codex) engine_display="${BLUE}Codex${RESET}" ;;
+      qwen) engine_display="${GREEN}Qwen-Code${RESET}" ;;
+      droid) engine_display="${MAGENTA}Factory Droid${RESET}" ;;
+      *) engine_display="${MAGENTA}Claude Code${RESET}" ;;
+    esac
+    echo "Engine: $engine_display"
+    if [[ -d "$RALPHY_DIR" ]]; then
+      echo "Config: ${GREEN}$RALPHY_DIR/${RESET}"
+    else
+      echo "Config: ${DIM}none (run --init to configure)${RESET}"
+    fi
+    echo "${BOLD}============================================${RESET}"
+
+    run_brownfield_task "$SINGLE_TASK"
+    exit $?
+  fi
+
   if [[ "$DRY_RUN" == true ]] && [[ "$MAX_ITERATIONS" -eq 0 ]]; then
     MAX_ITERATIONS=1
   fi
-  
+
   # Set up cleanup trap
   trap cleanup EXIT
   trap 'exit 130' INT TERM HUP
-  
+
   # Check requirements
   check_requirements
-  
+
   # Show banner
   echo "${BOLD}============================================${RESET}"
   echo "${BOLD}Ralphy${RESET} - Running until PRD is complete"
