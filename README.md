@@ -157,6 +157,34 @@ ralphy --base-branch main               # branch from main
 
 Branch naming: `ralphy/<task-slug>`
 
+## Browser Automation
+
+Ralphy can use [agent-browser](https://agent-browser.dev) to automate browser interactions during tasks.
+
+```bash
+ralphy "test the login flow" --browser    # force enable
+ralphy "add checkout" --no-browser        # force disable
+ralphy "build feature"                    # auto-detect (default)
+```
+
+When enabled, the AI gets browser commands:
+- `agent-browser open <url>` - navigate to URL
+- `agent-browser snapshot` - get element refs (@e1, @e2)
+- `agent-browser click @e1` - click element
+- `agent-browser type @e1 "text"` - type into input
+- `agent-browser screenshot <file>` - capture screenshot
+
+**Use cases:**
+- Testing UI after implementing features
+- Verifying deployments
+- Form filling and workflow testing
+
+**Config** (`.ralphy/config.yaml`):
+```yaml
+capabilities:
+  browser: "auto"  # "auto", "true", or "false"
+```
+
 ## Options
 
 | Flag | What it does |
@@ -179,6 +207,8 @@ Branch naming: `ralphy/<task-slug>`
 | `--max-retries N` | retries per task (default: 3) |
 | `--retry-delay N` | seconds between retries |
 | `--dry-run` | preview only |
+| `--browser` | enable browser automation |
+| `--no-browser` | disable browser automation |
 | `-v, --verbose` | debug output |
 | `--init` | setup .ralphy/ config |
 | `--config` | show config |
@@ -199,6 +229,7 @@ Branch naming: `ralphy/<task-slug>`
 
 **Both versions:**
 - `gh` (optional, for GitHub issues / `--create-pr`)
+- [agent-browser](https://agent-browser.dev) (optional, for `--browser`)
 
 ## Engine Details
 
@@ -214,6 +245,11 @@ Branch naming: `ralphy/<task-slug>`
 ---
 
 ## Changelog
+
+### v4.2.0
+- browser automation: `--browser` / `--no-browser` with [agent-browser](https://agent-browser.dev)
+- auto-detects agent-browser when available
+- config option: `capabilities.browser` in `.ralphy/config.yaml`
 
 ### v4.1.0
 - TypeScript CLI: `npm install -g ralphy-cli`
@@ -248,6 +284,10 @@ Branch naming: `ralphy/<task-slug>`
 
 ### v1.0.0
 - initial release
+
+## Community
+
+- [Discord](https://rasmic.link/discord)
 
 ## License
 

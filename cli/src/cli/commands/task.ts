@@ -1,6 +1,7 @@
 import type { AIEngineName } from "../../engines/types.ts";
 import { createEngine, isEngineAvailable } from "../../engines/index.ts";
 import { buildPrompt } from "../../execution/prompt.ts";
+import { isBrowserAvailable } from "../../execution/browser.ts";
 import { isRetryableError, withRetry } from "../../execution/retry.ts";
 import { logTaskProgress } from "../../config/writer.ts";
 import { logError, logInfo, setVerbose, formatTokens } from "../../ui/logger.ts";
@@ -29,11 +30,19 @@ export async function runTask(task: string, options: RuntimeOptions): Promise<vo
 
 	logInfo(`Running task with ${engine.name}...`);
 
+	// Check browser availability
+	if (isBrowserAvailable(options.browserEnabled)) {
+		logInfo("Browser automation enabled (agent-browser)");
+	}
+
 	// Build prompt
 	const prompt = buildPrompt({
 		task,
 		autoCommit: options.autoCommit,
 		workDir,
+		browserEnabled: options.browserEnabled,
+		skipTests: options.skipTests,
+		skipLint: options.skipLint,
 	});
 
 	// Build active settings for display

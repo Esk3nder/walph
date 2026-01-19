@@ -24,6 +24,7 @@ export interface ExecutionOptions {
 	createPr: boolean;
 	draftPr: boolean;
 	autoCommit: boolean;
+	browserEnabled: "auto" | "true" | "false";
 	/** Active settings to display in spinner */
 	activeSettings?: string[];
 }
@@ -43,6 +44,8 @@ export async function runSequential(options: ExecutionOptions): Promise<Executio
 		engine,
 		taskSource,
 		workDir,
+		skipTests,
+		skipLint,
 		dryRun,
 		maxIterations,
 		maxRetries,
@@ -52,6 +55,7 @@ export async function runSequential(options: ExecutionOptions): Promise<Executio
 		createPr,
 		draftPr,
 		autoCommit,
+		browserEnabled,
 		activeSettings,
 	} = options;
 
@@ -98,6 +102,9 @@ export async function runSequential(options: ExecutionOptions): Promise<Executio
 			task: task.body || task.title,
 			autoCommit,
 			workDir,
+			browserEnabled,
+			skipTests,
+			skipLint,
 		});
 
 		// Execute with spinner
