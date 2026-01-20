@@ -154,6 +154,9 @@ export async function runParallel(
 	// Track completed branches for merge phase
 	const completedBranches: string[] = [];
 
+	// Global agent counter to ensure unique numbering across batches
+	let globalAgentNum = 0;
+
 	// Process tasks in batches
 	let iteration = 0;
 
@@ -200,11 +203,12 @@ export async function runParallel(
 		}
 
 		// Run agents in parallel
-		const promises = batch.map((task, i) =>
-			runAgentInWorktree(
+		const promises = batch.map((task) => {
+			globalAgentNum++;
+			return runAgentInWorktree(
 				engine,
 				task,
-				i + 1,
+				globalAgentNum,
 				baseBranch,
 				worktreeBase,
 				workDir,
@@ -216,8 +220,8 @@ export async function runParallel(
 				skipLint,
 				browserEnabled,
 				modelOverride
-			)
-		);
+			);
+		});
 
 		const results = await Promise.all(promises);
 
