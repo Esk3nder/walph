@@ -16,7 +16,7 @@ export interface MergeResult {
 export async function mergeAgentBranch(
 	branchName: string,
 	targetBranch: string,
-	workDir: string
+	workDir: string,
 ): Promise<MergeResult> {
 	const git: SimpleGit = simpleGit(workDir);
 
@@ -57,7 +57,7 @@ export async function mergeAgentBranch(
 export async function createIntegrationBranch(
 	groupNum: number,
 	baseBranch: string,
-	workDir: string
+	workDir: string,
 ): Promise<string> {
 	const git: SimpleGit = simpleGit(workDir);
 	const branchName = `ralphy/integration-group-${groupNum}`;
@@ -85,7 +85,7 @@ export async function createIntegrationBranch(
 export async function mergeIntoBranch(
 	sourceBranches: string[],
 	targetBranch: string,
-	workDir: string
+	workDir: string,
 ): Promise<{ succeeded: string[]; failed: string[]; conflicted: string[] }> {
 	const succeeded: string[] = [];
 	const failed: string[] = [];
@@ -134,7 +134,7 @@ export async function abortMerge(workDir: string): Promise<void> {
 export async function deleteLocalBranch(
 	branchName: string,
 	workDir: string,
-	force = false
+	force = false,
 ): Promise<boolean> {
 	const git: SimpleGit = simpleGit(workDir);
 	try {

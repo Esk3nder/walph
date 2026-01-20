@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import simpleGit, { type SimpleGit } from "simple-git";
-import { slugify } from "./branch.ts";
 import { logDebug } from "../ui/logger.ts";
+import { slugify } from "./branch.ts";
 
 /**
  * Generate a unique identifier for branch names
@@ -22,7 +22,7 @@ export async function createAgentWorktree(
 	agentNum: number,
 	baseBranch: string,
 	worktreeBase: string,
-	originalDir: string
+	originalDir: string,
 ): Promise<{ worktreeDir: string; branchName: string }> {
 	const uniqueId = generateUniqueId();
 	const branchName = `ralphy/agent-${agentNum}-${uniqueId}-${slugify(taskName)}`;
@@ -53,7 +53,7 @@ export async function createAgentWorktree(
 export async function cleanupAgentWorktree(
 	worktreeDir: string,
 	_branchName: string,
-	originalDir: string
+	originalDir: string,
 ): Promise<{ leftInPlace: boolean }> {
 	// Check for uncommitted changes
 	if (existsSync(worktreeDir)) {

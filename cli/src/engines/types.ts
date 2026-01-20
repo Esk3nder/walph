@@ -41,7 +41,7 @@ export interface AIEngine {
 		prompt: string,
 		workDir: string,
 		onProgress: ProgressCallback,
-		options?: EngineOptions
+		options?: EngineOptions,
 	): Promise<AIResult>;
 }
 

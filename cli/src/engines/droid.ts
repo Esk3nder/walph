@@ -1,9 +1,9 @@
 import {
 	BaseAIEngine,
 	checkForErrors,
+	detectStepFromOutput,
 	execCommand,
 	execCommandStreaming,
-	detectStepFromOutput,
 } from "./base.ts";
 import type { AIResult, EngineOptions, ProgressCallback } from "./types.ts";
 
@@ -21,11 +21,7 @@ export class DroidEngine extends BaseAIEngine {
 		}
 		args.push(prompt);
 
-		const { stdout, stderr, exitCode } = await execCommand(
-			this.cliCommand,
-			args,
-			workDir
-		);
+		const { stdout, stderr, exitCode } = await execCommand(this.cliCommand, args, workDir);
 
 		const output = stdout + stderr;
 
@@ -81,7 +77,7 @@ export class DroidEngine extends BaseAIEngine {
 		prompt: string,
 		workDir: string,
 		onProgress: ProgressCallback,
-		options?: EngineOptions
+		options?: EngineOptions,
 	): Promise<AIResult> {
 		const args = ["exec", "--output-format", "stream-json", "--auto", "medium"];
 		if (options?.modelOverride) {
@@ -91,20 +87,15 @@ export class DroidEngine extends BaseAIEngine {
 
 		const outputLines: string[] = [];
 
-		const { exitCode } = await execCommandStreaming(
-			this.cliCommand,
-			args,
-			workDir,
-			(line) => {
-				outputLines.push(line);
+		const { exitCode } = await execCommandStreaming(this.cliCommand, args, workDir, (line) => {
+			outputLines.push(line);
 
-				// Detect and report step changes
-				const step = detectStepFromOutput(line);
-				if (step) {
-					onProgress(step);
-				}
+			// Detect and report step changes
+			const step = detectStepFromOutput(line);
+			if (step) {
+				onProgress(step);
 			}
-		);
+		});
 
 		const output = outputLines.join("\n");
 

@@ -15,12 +15,9 @@ export class OpenCodeEngine extends BaseAIEngine {
 		}
 		args.push(prompt);
 
-		const { stdout, stderr, exitCode } = await execCommand(
-			this.cliCommand,
-			args,
-			workDir,
-			{ OPENCODE_PERMISSION: '{"*":"allow"}' }
-		);
+		const { stdout, stderr, exitCode } = await execCommand(this.cliCommand, args, workDir, {
+			OPENCODE_PERMISSION: '{"*":"allow"}',
+		});
 
 		const output = stdout + stderr;
 

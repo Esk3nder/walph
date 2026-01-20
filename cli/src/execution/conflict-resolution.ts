@@ -1,6 +1,6 @@
 import type { AIEngine } from "../engines/types.ts";
 import { completeMerge, getConflictedFiles } from "../git/merge.ts";
-import { logDebug, logInfo, logError } from "../ui/logger.ts";
+import { logDebug, logError, logInfo } from "../ui/logger.ts";
 
 /**
  * Build a prompt for AI-assisted conflict resolution
@@ -35,7 +35,7 @@ export async function resolveConflictsWithAI(
 	conflictedFiles: string[],
 	branchName: string,
 	workDir: string,
-	modelOverride?: string
+	modelOverride?: string,
 ): Promise<boolean> {
 	if (conflictedFiles.length === 0) {
 		return true;

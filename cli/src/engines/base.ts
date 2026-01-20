@@ -23,7 +23,7 @@ export async function execCommand(
 	command: string,
 	args: string[],
 	workDir: string,
-	env?: Record<string, string>
+	env?: Record<string, string>,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	const proc = Bun.spawn([command, ...args], {
 		cwd: workDir,
@@ -95,7 +95,7 @@ export function checkForErrors(output: string): string | null {
  */
 async function readStream(
 	stream: ReadableStream<Uint8Array>,
-	onLine: (line: string) => void
+	onLine: (line: string) => void,
 ): Promise<void> {
 	const reader = stream.getReader();
 	const decoder = new TextDecoder();
@@ -125,7 +125,7 @@ export async function execCommandStreaming(
 	args: string[],
 	workDir: string,
 	onLine: (line: string) => void,
-	env?: Record<string, string>
+	env?: Record<string, string>,
 ): Promise<{ exitCode: number }> {
 	const proc = Bun.spawn([command, ...args], {
 		cwd: workDir,
@@ -135,10 +135,7 @@ export async function execCommandStreaming(
 	});
 
 	// Process both stdout and stderr in parallel
-	await Promise.all([
-		readStream(proc.stdout, onLine),
-		readStream(proc.stderr, onLine),
-	]);
+	await Promise.all([readStream(proc.stdout, onLine), readStream(proc.stderr, onLine)]);
 
 	const exitCode = await proc.exited;
 	return { exitCode };
@@ -258,6 +255,6 @@ export abstract class BaseAIEngine implements AIEngine {
 		prompt: string,
 		workDir: string,
 		onProgress: ProgressCallback,
-		options?: EngineOptions
+		options?: EngineOptions,
 	): Promise<AIResult>;
 }
