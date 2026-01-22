@@ -13,35 +13,12 @@ function resolveCommand(command: string): string {
 	try {
 		const result = spawnSync("where", [command], { encoding: "utf8", stdio: "pipe" });
 		if (result.status !== 0) return command;
-		const paths = result.stdout.trim().split(/\r?\n/).filter(Boolean);
-
+		const paths = result.stdout.trim().split(/\r?\n/);
 		// Return first path (the one that would be executed)
 		return paths[0] || command;
 	} catch {
 		return command;
 	}
-}
-
-/**
- * On Windows, Node's spawn() cannot execute .cmd/.bat shims directly.
- * If resolveCommand() returns a shim, wrap it through cmd.exe.
- */
-function buildSpawnCommand(
-	resolvedCommand: string,
-	args: string[],
-): { command: string; args: string[] } {
-	if (!isWindows || isBun) return { command: resolvedCommand, args };
-
-	const lower = resolvedCommand.toLowerCase();
-	if (lower.endsWith(".cmd") || lower.endsWith(".bat")) {
-		return {
-			command: "cmd.exe",
-			// /d disables AutoRun, /s enables correct quote processing, /c runs then exits
-			args: ["/d", "/s", "/c", `"${resolvedCommand}"`, ...args],
-		};
-	}
-
-	return { command: resolvedCommand, args };
 }
 
 /**
@@ -92,13 +69,10 @@ export async function execCommand(
 		return { stdout, stderr, exitCode };
 	}
 
-	// Node.js fallback - resolve full path on Windows to avoid shell,
-	// but if the resolved target is a .cmd/.bat shim, we must wrap via cmd.exe.
+	// Node.js fallback - resolve full path on Windows to avoid shell
 	const resolvedCommand = resolveCommand(command);
-	const { command: spawnCommand, args: spawnArgs } = buildSpawnCommand(resolvedCommand, args);
-
 	return new Promise((resolve) => {
-		const proc = spawn(spawnCommand, spawnArgs, {
+		const proc = spawn(resolvedCommand, args, {
 			cwd: workDir,
 			env: { ...process.env, ...env },
 			stdio: ["ignore", "pipe", "pipe"], // Close stdin, pipe stdout/stderr
@@ -226,13 +200,10 @@ export async function execCommandStreaming(
 		return { exitCode };
 	}
 
-	// Node.js fallback - resolve full path on Windows to avoid shell,
-	// but if the resolved target is a .cmd/.bat shim, we must wrap via cmd.exe.
+	// Node.js fallback - resolve full path on Windows to avoid shell
 	const resolvedCommand = resolveCommand(command);
-	const { command: spawnCommand, args: spawnArgs } = buildSpawnCommand(resolvedCommand, args);
-
 	return new Promise((resolve) => {
-		const proc = spawn(spawnCommand, spawnArgs, {
+		const proc = spawn(resolvedCommand, args, {
 			cwd: workDir,
 			env: { ...process.env, ...env },
 			stdio: ["ignore", "pipe", "pipe"], // Close stdin, pipe stdout/stderr
@@ -241,7 +212,7 @@ export async function execCommandStreaming(
 		let stdoutBuffer = "";
 		let stderrBuffer = "";
 
-		const processBuffer = (buffer: string) => {
+		const processBuffer = (buffer: string, isStderr = false) => {
 			const lines = buffer.split("\n");
 			const remaining = lines.pop() || "";
 			for (const line of lines) {
@@ -257,7 +228,7 @@ export async function execCommandStreaming(
 
 		proc.stderr?.on("data", (data) => {
 			stderrBuffer += data.toString();
-			stderrBuffer = processBuffer(stderrBuffer);
+			stderrBuffer = processBuffer(stderrBuffer, true);
 		});
 
 		proc.on("close", (exitCode) => {
