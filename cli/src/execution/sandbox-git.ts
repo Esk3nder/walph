@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import simpleGit, { type SimpleGit } from "simple-git";
 import { slugify } from "../git/branch.ts";
 import { logDebug } from "../ui/logger.ts";
@@ -65,6 +65,11 @@ export async function commitSandboxChanges(
 			const originalPath = join(originalDir, relPath);
 
 			if (existsSync(sandboxPath)) {
+				const parentDir = dirname(originalPath);
+				if (!existsSync(parentDir)) {
+					mkdirSync(parentDir, { recursive: true });
+				}
+
 				// Read from sandbox and write to original
 				const content = readFileSync(sandboxPath);
 				writeFileSync(originalPath, content);

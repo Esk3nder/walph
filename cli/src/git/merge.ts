@@ -7,7 +7,48 @@ export interface MergeResult {
 	success: boolean;
 	hasConflicts: boolean;
 	conflictedFiles?: string[];
+	potentialConflictFiles?: string[];
 	error?: string;
+}
+
+function parseGitFileList(output: string): string[] {
+	return output
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+}
+
+async function getPotentialConflictFiles(
+	branchName: string,
+	targetBranch: string,
+	workDir: string,
+): Promise<string[]> {
+	const git: SimpleGit = simpleGit(workDir);
+	try {
+		const mergeBase = (await git.raw(["merge-base", targetBranch, branchName])).trim();
+		if (!mergeBase) {
+			return [];
+		}
+
+		const [branchDiff, targetDiff] = await Promise.all([
+			git.diff(["--name-only", `${mergeBase}..${branchName}`]),
+			git.diff(["--name-only", `${mergeBase}..${targetBranch}`]),
+		]);
+
+		const branchFiles = new Set(parseGitFileList(branchDiff));
+		const targetFiles = new Set(parseGitFileList(targetDiff));
+		const overlap: string[] = [];
+
+		for (const file of branchFiles) {
+			if (targetFiles.has(file)) {
+				overlap.push(file);
+			}
+		}
+
+		return overlap;
+	} catch {
+		return [];
+	}
 }
 
 /**
@@ -19,6 +60,9 @@ export async function mergeAgentBranch(
 	workDir: string,
 ): Promise<MergeResult> {
 	const git: SimpleGit = simpleGit(workDir);
+	const potentialConflictFiles = await getPotentialConflictFiles(branchName, targetBranch, workDir);
+	const potentialConflicts =
+		potentialConflictFiles.length > 0 ? potentialConflictFiles : undefined;
 
 	try {
 		// Checkout target branch
@@ -27,7 +71,7 @@ export async function mergeAgentBranch(
 		// Attempt merge
 		try {
 			await git.merge([branchName, "--no-ff", "-m", `Merge ${branchName} into ${targetBranch}`]);
-			return { success: true, hasConflicts: false };
+			return { success: true, hasConflicts: false, potentialConflictFiles: potentialConflicts };
 		} catch (mergeError) {
 			// Check if we have conflicts
 			const conflictedFiles = await getConflictedFiles(workDir);
@@ -36,6 +80,7 @@ export async function mergeAgentBranch(
 					success: false,
 					hasConflicts: true,
 					conflictedFiles,
+					potentialConflictFiles: potentialConflicts,
 				};
 			}
 			// Some other merge error
@@ -46,6 +91,7 @@ export async function mergeAgentBranch(
 		return {
 			success: false,
 			hasConflicts: false,
+			potentialConflictFiles: potentialConflicts,
 			error: errorMsg,
 		};
 	}

@@ -8,9 +8,10 @@ import {
 	readlinkSync,
 	rmSync,
 	statSync,
+	utimesSync,
 	symlinkSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { logDebug } from "../ui/logger.ts";
 
 /**
@@ -168,12 +169,17 @@ export async function createSandbox(options: SandboxOptions): Promise<SandboxRes
 				symlinkSync(target, sandboxPath);
 				symlinksCreated++;
 			} else if (stat.isDirectory()) {
-				// Copy directory recursively
-				cpSync(originalPath, sandboxPath, { recursive: true });
+				// Copy directory recursively, preserving timestamps for change detection
+				cpSync(originalPath, sandboxPath, { recursive: true, preserveTimestamps: true });
 				filesCopied++;
 			} else if (stat.isFile()) {
-				// Copy file
+				// Copy file and preserve timestamps for change detection
 				copyFileSync(originalPath, sandboxPath);
+				try {
+					utimesSync(sandboxPath, stat.atime, stat.mtime);
+				} catch (utimeErr) {
+					logDebug(`Agent ${agentNum}: Failed to preserve timestamps for ${item}: ${utimeErr}`);
+				}
 				filesCopied++;
 			}
 		} catch (err) {
@@ -234,7 +240,7 @@ export async function getModifiedFiles(
 		if (stat.isSymbolicLink()) return;
 
 		// Skip known symlink directories
-		const topLevel = relPath.split("/")[0];
+		const topLevel = relPath.split(sep)[0];
 		if (symlinkDirs.includes(topLevel)) return;
 
 		if (stat.isDirectory()) {
@@ -248,7 +254,7 @@ export async function getModifiedFiles(
 				modified.push(relPath);
 			} else {
 				const originalStat = statSync(originalPath);
-				if (stat.mtimeMs > originalStat.mtimeMs) {
+				if (stat.mtimeMs !== originalStat.mtimeMs || stat.size !== originalStat.size) {
 					modified.push(relPath);
 				}
 			}
