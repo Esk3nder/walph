@@ -7,6 +7,8 @@ import {
 } from "./base.ts";
 import type { AIResult, EngineOptions, ProgressCallback } from "./types.ts";
 
+const isWindows = process.platform === "win32";
+
 /**
  * Cursor Agent AI Engine
  */
@@ -19,9 +21,22 @@ export class CursorEngine extends BaseAIEngine {
 		if (options?.modelOverride) {
 			args.push("--model", options.modelOverride);
 		}
-		args.push(prompt);
 
-		const { stdout, stderr, exitCode } = await execCommand(this.cliCommand, args, workDir);
+		// On Windows, pass prompt via stdin to avoid cmd.exe argument parsing issues
+		let stdinContent: string | undefined;
+		if (isWindows) {
+			stdinContent = prompt;
+		} else {
+			args.push(prompt);
+		}
+
+		const { stdout, stderr, exitCode } = await execCommand(
+			this.cliCommand,
+			args,
+			workDir,
+			undefined,
+			stdinContent,
+		);
 
 		const output = stdout + stderr;
 
@@ -93,19 +108,33 @@ export class CursorEngine extends BaseAIEngine {
 		if (options?.modelOverride) {
 			args.push("--model", options.modelOverride);
 		}
-		args.push(prompt);
+
+		// On Windows, pass prompt via stdin to avoid cmd.exe argument parsing issues
+		let stdinContent: string | undefined;
+		if (isWindows) {
+			stdinContent = prompt;
+		} else {
+			args.push(prompt);
+		}
 
 		const outputLines: string[] = [];
 
-		const { exitCode } = await execCommandStreaming(this.cliCommand, args, workDir, (line) => {
-			outputLines.push(line);
+		const { exitCode } = await execCommandStreaming(
+			this.cliCommand,
+			args,
+			workDir,
+			(line) => {
+				outputLines.push(line);
 
-			// Detect and report step changes
-			const step = detectStepFromOutput(line);
-			if (step) {
-				onProgress(step);
-			}
-		});
+				// Detect and report step changes
+				const step = detectStepFromOutput(line);
+				if (step) {
+					onProgress(step);
+				}
+			},
+			undefined,
+			stdinContent,
+		);
 
 		const output = outputLines.join("\n");
 

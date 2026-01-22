@@ -29,22 +29,31 @@ export async function commandExists(command: string): Promise<boolean> {
 
 /**
  * Execute a command and return stdout
+ * @param stdinContent - Optional content to pass via stdin (useful for multi-line prompts on Windows)
  */
 export async function execCommand(
 	command: string,
 	args: string[],
 	workDir: string,
 	env?: Record<string, string>,
+	stdinContent?: string,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	if (isBun) {
 		// On Windows, run through cmd.exe to handle .cmd wrappers (npm global packages)
 		const spawnArgs = isWindows ? ["cmd.exe", "/c", command, ...args] : [command, ...args];
 		const proc = Bun.spawn(spawnArgs, {
 			cwd: workDir,
+			stdin: stdinContent ? "pipe" : "ignore",
 			stdout: "pipe",
 			stderr: "pipe",
 			env: { ...process.env, ...env },
 		});
+
+		// Write stdin content if provided
+		if (stdinContent && proc.stdin) {
+			proc.stdin.write(stdinContent);
+			proc.stdin.end();
+		}
 
 		const [stdout, stderr, exitCode] = await Promise.all([
 			new Response(proc.stdout).text(),
@@ -60,10 +69,16 @@ export async function execCommand(
 		const proc = spawn(command, args, {
 			cwd: workDir,
 			env: { ...process.env, ...env },
-			stdio: ["ignore", "pipe", "pipe"], // Close stdin, pipe stdout/stderr
+			stdio: [stdinContent ? "pipe" : "ignore", "pipe", "pipe"],
 			shell: isWindows, // Required on Windows for npm global commands (.cmd wrappers)
-			windowsVerbatimArguments: !isWindows, // Prevent double-escaping on non-Windows
+			windowsVerbatimArguments: isWindows, // Prevent double-escaping on Windows when using shell
 		});
+
+		// Write stdin content if provided
+		if (stdinContent && proc.stdin) {
+			proc.stdin.write(stdinContent);
+			proc.stdin.end();
+		}
 
 		let stdout = "";
 		let stderr = "";
@@ -166,6 +181,7 @@ async function readStream(
 
 /**
  * Execute a command with streaming output, calling onLine for each line
+ * @param stdinContent - Optional content to pass via stdin (useful for multi-line prompts on Windows)
  */
 export async function execCommandStreaming(
 	command: string,
@@ -173,16 +189,24 @@ export async function execCommandStreaming(
 	workDir: string,
 	onLine: (line: string) => void,
 	env?: Record<string, string>,
+	stdinContent?: string,
 ): Promise<{ exitCode: number }> {
 	if (isBun) {
 		// On Windows, run through cmd.exe to handle .cmd wrappers (npm global packages)
 		const spawnArgs = isWindows ? ["cmd.exe", "/c", command, ...args] : [command, ...args];
 		const proc = Bun.spawn(spawnArgs, {
 			cwd: workDir,
+			stdin: stdinContent ? "pipe" : "ignore",
 			stdout: "pipe",
 			stderr: "pipe",
 			env: { ...process.env, ...env },
 		});
+
+		// Write stdin content if provided
+		if (stdinContent && proc.stdin) {
+			proc.stdin.write(stdinContent);
+			proc.stdin.end();
+		}
 
 		// Process both stdout and stderr in parallel
 		await Promise.all([readStream(proc.stdout, onLine), readStream(proc.stderr, onLine)]);
@@ -196,10 +220,16 @@ export async function execCommandStreaming(
 		const proc = spawn(command, args, {
 			cwd: workDir,
 			env: { ...process.env, ...env },
-			stdio: ["ignore", "pipe", "pipe"], // Close stdin, pipe stdout/stderr
+			stdio: [stdinContent ? "pipe" : "ignore", "pipe", "pipe"],
 			shell: isWindows, // Required on Windows for npm global commands (.cmd wrappers)
-			windowsVerbatimArguments: !isWindows, // Prevent double-escaping on non-Windows
+			windowsVerbatimArguments: isWindows, // Prevent double-escaping on Windows when using shell
 		});
+
+		// Write stdin content if provided
+		if (stdinContent && proc.stdin) {
+			proc.stdin.write(stdinContent);
+			proc.stdin.end();
+		}
 
 		let stdoutBuffer = "";
 		let stderrBuffer = "";

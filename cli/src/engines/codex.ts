@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { BaseAIEngine, execCommand } from "./base.ts";
 import type { AIResult, EngineOptions } from "./types.ts";
 
+const isWindows = process.platform === "win32";
+
 /**
  * Codex AI Engine
  */
@@ -19,9 +21,22 @@ export class CodexEngine extends BaseAIEngine {
 			if (options?.modelOverride) {
 				args.push("--model", options.modelOverride);
 			}
-			args.push(prompt);
 
-			const { stdout, stderr, exitCode } = await execCommand(this.cliCommand, args, workDir);
+			// On Windows, pass prompt via stdin to avoid cmd.exe argument parsing issues with multi-line content
+			let stdinContent: string | undefined;
+			if (isWindows) {
+				stdinContent = prompt;
+			} else {
+				args.push(prompt);
+			}
+
+			const { stdout, stderr, exitCode } = await execCommand(
+				this.cliCommand,
+				args,
+				workDir,
+				undefined,
+				stdinContent,
+			);
 
 			const output = stdout + stderr;
 
