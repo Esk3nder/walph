@@ -72,7 +72,8 @@ async function sendSlackNotification(
 	});
 
 	if (!response.ok) {
-		throw new Error(`Slack webhook failed: ${response.status}`);
+		const text = await response.text().catch(() => "");
+		throw new Error(`Slack webhook failed: ${response.status}${text ? ` - ${text}` : ""}`);
 	}
 }
 
