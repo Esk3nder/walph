@@ -4,6 +4,7 @@ import {
 	detectStepFromOutput,
 	execCommand,
 	execCommandStreaming,
+	formatCommandError,
 	parseStreamJsonResult,
 } from "./base.ts";
 import type { AIResult, EngineOptions, ProgressCallback } from "./types.ts";
@@ -62,8 +63,19 @@ export class ClaudeEngine extends BaseAIEngine {
 		// Parse result
 		const { response, inputTokens, outputTokens } = parseStreamJsonResult(output);
 
+		// If command failed with non-zero exit code, provide a meaningful error
+		if (exitCode !== 0) {
+			return {
+				success: false,
+				response,
+				inputTokens,
+				outputTokens,
+				error: formatCommandError(exitCode, output),
+			};
+		}
+
 		return {
-			success: exitCode === 0,
+			success: true,
 			response,
 			inputTokens,
 			outputTokens,
@@ -131,8 +143,19 @@ export class ClaudeEngine extends BaseAIEngine {
 		// Parse result
 		const { response, inputTokens, outputTokens } = parseStreamJsonResult(output);
 
+		// If command failed with non-zero exit code, provide a meaningful error
+		if (exitCode !== 0) {
+			return {
+				success: false,
+				response,
+				inputTokens,
+				outputTokens,
+				error: formatCommandError(exitCode, output),
+			};
+		}
+
 		return {
-			success: exitCode === 0,
+			success: true,
 			response,
 			inputTokens,
 			outputTokens,

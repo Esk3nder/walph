@@ -1,4 +1,4 @@
-import { BaseAIEngine, checkForErrors, execCommand } from "./base.ts";
+import { BaseAIEngine, checkForErrors, execCommand, formatCommandError } from "./base.ts";
 import type { AIResult, EngineOptions } from "./types.ts";
 
 const isWindows = process.platform === "win32";
@@ -53,8 +53,19 @@ export class OpenCodeEngine extends BaseAIEngine {
 		// Parse OpenCode JSON format
 		const { response, inputTokens, outputTokens, cost } = this.parseOutput(output);
 
+		// If command failed with non-zero exit code, provide a meaningful error
+		if (exitCode !== 0) {
+			return {
+				success: false,
+				response,
+				inputTokens,
+				outputTokens,
+				error: formatCommandError(exitCode, output),
+			};
+		}
+
 		return {
-			success: exitCode === 0,
+			success: true,
 			response,
 			inputTokens,
 			outputTokens,
