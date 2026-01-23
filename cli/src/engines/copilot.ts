@@ -180,7 +180,6 @@ export class CopilotEngine extends BaseAIEngine {
 	 * Parse a token count string like "17.5k" or "73" into a number
 	 */
 	private parseTokenCount(str: string): number {
-	private parseTokenCount(str: string): number {
 		const trimmed = str.trim().toLowerCase();
 		if (trimmed.endsWith("k")) {
 			const value = Number.parseFloat(trimmed.slice(0, -1));
@@ -192,7 +191,6 @@ export class CopilotEngine extends BaseAIEngine {
 		}
 		const value = Number.parseFloat(trimmed);
 		return isNaN(value) ? 0 : Math.round(value);
-	}
 	}
 
 	/**
