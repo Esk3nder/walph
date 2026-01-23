@@ -524,11 +524,6 @@ export async function runParallel(
 				logTaskProgress(task.title, "completed", workDir);
 				result.tasksCompleted++;
 
-				// Sync PRD to GitHub issue if configured
-				if (syncIssue && prdFile) {
-					await syncPrdToIssue(prdFile, syncIssue, workDir);
-				}
-
 				notifyTaskComplete(task.title);
 				clearDeferredTask(taskSource.type, task, workDir, prdFile);
 
@@ -607,6 +602,12 @@ export async function runParallel(
 					logInfo(`Worktree left in place (uncommitted changes): ${worktreeDir}`);
 				}
 			}
+		}
+
+		// Sync PRD to GitHub issue once per batch (after all tasks processed)
+		// This prevents multiple concurrent syncs and reduces API calls
+		if (syncIssue && prdFile && result.tasksCompleted > 0) {
+			await syncPrdToIssue(prdFile, syncIssue, workDir);
 		}
 
 		// If any retryable failure occurred, stop the run to allow retry later

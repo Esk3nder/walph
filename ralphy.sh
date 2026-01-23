@@ -2631,6 +2631,9 @@ run_parallel_tasks() {
         rm -f "$status_file" "$output_file" "$log_file"
       done
 
+      # Sync PRD to GitHub issue once per batch (prevents concurrent syncs)
+      sync_prd_to_issue
+
       batch_start=$batch_end
 
       # Check if we've hit max iterations
