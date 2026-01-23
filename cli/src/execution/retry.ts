@@ -120,3 +120,26 @@ export function isRetryableError(error: string): boolean {
 
 	return retryablePatterns.some((pattern) => pattern.test(error));
 }
+
+/**
+ * Check if an error is fatal and should abort all remaining tasks.
+ * Fatal errors indicate a configuration or authentication problem that
+ * will affect all subsequent tasks.
+ */
+export function isFatalError(error: string): boolean {
+	const fatalPatterns = [
+		/not authenticated/i,
+		/no authentication/i,
+		/authentication failed/i,
+		/invalid.*token/i,
+		/invalid.*api.?key/i,
+		/unauthorized/i,
+		/401/,
+		/403.*forbidden/i,
+		/command not found/i,
+		/not installed/i,
+		/is not recognized/i, // Windows "command not recognized"
+	];
+
+	return fatalPatterns.some((pattern) => pattern.test(error));
+}
