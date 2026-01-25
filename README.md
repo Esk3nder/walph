@@ -362,6 +362,9 @@ When an engine exits non-zero, ralphy includes the last lines of CLI output in t
 
 ## Changelog
 
+### v4.7.0
+- **JSON PRD support**: new `--json` flag to use JSON files as task sources with support for parallel groups and task descriptions
+
 ### v4.6.0
 - **Gemini CLI support**: new `--gemini` engine option for Google Gemini CLI
 - **GitHub issue sync**: `--sync-issue <number>` syncs PRD progress to a GitHub issue after each task
