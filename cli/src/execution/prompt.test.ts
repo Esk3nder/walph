@@ -73,15 +73,7 @@ boundaries:
 			expect(legacyIndex).toBeGreaterThan(prdIndex);
 		});
 
-		it("should include 'keep changes focused' note in boundaries section", () => {
-			const result = buildPrompt({
-				task: "Test task",
-				workDir: testWorkDir,
-			});
 
-			expect(result).toContain("Keep changes focused and minimal");
-			expect(result).toContain("Do not refactor unrelated code");
-		});
 
 		it("should always include boundaries section even without user-defined boundaries", () => {
 			const result = buildPrompt({
@@ -204,6 +196,16 @@ project:
 	});
 
 	describe("Rules", () => {
+		it("should always include code change rules", () => {
+			const result = buildPrompt({
+				task: "Test task",
+				workDir: testWorkDir,
+			});
+
+			expect(result).toContain("## Rules (you MUST follow these)");
+			expect(result).toContain("Keep changes focused and minimal. Do not refactor unrelated code.");
+		});
+
 		it("should include rules when defined in config", () => {
 			writeFileSync(
 				join(ralphyDir, "config.yaml"),
@@ -222,6 +224,7 @@ rules:
 			});
 
 			expect(result).toContain("## Rules (you MUST follow these)");
+			expect(result).toContain("Keep changes focused and minimal. Do not refactor unrelated code.");
 			expect(result).toContain("Always use TypeScript strict mode");
 			expect(result).toContain("Write comprehensive tests");
 		});

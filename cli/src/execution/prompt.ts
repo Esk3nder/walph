@@ -52,8 +52,12 @@ export function buildPrompt(options: PromptOptions): string {
 
 	// Add rules if available
 	const rules = loadRules(workDir);
-	if (rules.length > 0) {
-		parts.push(`## Rules (you MUST follow these)\n${rules.join("\n")}`);
+	const codeChangeRules = [
+		"Keep changes focused and minimal. Do not refactor unrelated code.",
+		...rules,
+	];
+	if (codeChangeRules.length > 0) {
+		parts.push(`## Rules (you MUST follow these)\n${codeChangeRules.join("\n")}`);
 	}
 
 	// Add boundaries - combine system boundaries with user-defined boundaries
@@ -66,7 +70,7 @@ export function buildPrompt(options: PromptOptions): string {
 		".ralphy-sandboxes",
 	];
 	const allBoundaries = [...systemBoundaries, ...userBoundaries];
-	parts.push(`## Boundaries\nDo NOT modify these files/directories:\n${allBoundaries.map((b) => `- ${b}`).join("\n")}\n\nKeep changes focused and minimal. Do not refactor unrelated code.`);
+	parts.push(`## Boundaries\nDo NOT modify these files/directories:\n${allBoundaries.map((b) => `- ${b}`).join("\n")}`);
 
 	// Agent skills/playbooks (optional)
 	const skillRoots = detectAgentSkills(workDir);
