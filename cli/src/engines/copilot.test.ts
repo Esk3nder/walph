@@ -470,10 +470,10 @@ o1-preview 1.5m in, 0.5m out, 0.1m cached`,
 	});
 
 	describe("Error Handling", () => {
-		it("should detect authentication errors", async () => {
+		it("should detect authentication errors when output starts with auth message", async () => {
 			const spy = spyOn(baseModule, "execCommand").mockResolvedValue({
-				stdout: "",
-				stderr: "Error: No authentication found",
+				stdout: "Not authenticated. Please login first.",
+				stderr: "",
 				exitCode: 1,
 			});
 
@@ -486,9 +486,9 @@ o1-preview 1.5m in, 0.5m out, 0.1m cached`,
 			spy.mockRestore();
 		});
 
-		it("should detect rate limit errors", async () => {
+		it("should detect rate limit errors when output starts with rate limit message", async () => {
 			const spy = spyOn(baseModule, "execCommand").mockResolvedValue({
-				stdout: "Error: Rate limit exceeded",
+				stdout: "Rate limit exceeded. Try again later.",
 				stderr: "",
 				exitCode: 0,
 			});
@@ -501,7 +501,28 @@ o1-preview 1.5m in, 0.5m out, 0.1m cached`,
 			spy.mockRestore();
 		});
 
-		it("should detect network errors", async () => {
+		it("should NOT treat network error in response content as CLI error", async () => {
+			// Network error appearing in response content should not be treated as a CLI error
+			// This could be test output, error handling code, or discussion about network issues
+			const spy = spyOn(baseModule, "execCommand").mockResolvedValue({
+				stdout: `Test results:
+- network error handling: PASS
+- connection refused retry: PASS
+model-name 1000 in, 500 out, 200 cached`,
+				stderr: "",
+				exitCode: 0,
+			});
+
+			const result = await engine.execute("test", testWorkDir);
+
+			expect(result.success).toBe(true);
+			expect(result.response).toContain("network error handling: PASS");
+
+			spy.mockRestore();
+		});
+
+		it("should handle network errors via non-zero exit code", async () => {
+			// Real network errors will cause non-zero exit codes
 			const spy = spyOn(baseModule, "execCommand").mockResolvedValue({
 				stdout: "Network error: Connection refused",
 				stderr: "",
@@ -511,12 +532,13 @@ o1-preview 1.5m in, 0.5m out, 0.1m cached`,
 			const result = await engine.execute("test", testWorkDir);
 
 			expect(result.success).toBe(false);
-			expect(result.error).toContain("Network error");
+			// Error comes from exit code handling, not text detection
+			expect(result.error).toContain("exit code 1");
 
 			spy.mockRestore();
 		});
 
-		it("should handle generic errors", async () => {
+		it("should handle generic errors when output starts with Error:", async () => {
 			const spy = spyOn(baseModule, "execCommand").mockResolvedValue({
 				stdout: "Error: Something went wrong",
 				stderr: "",
@@ -527,6 +549,25 @@ o1-preview 1.5m in, 0.5m out, 0.1m cached`,
 
 			expect(result.success).toBe(false);
 			expect(result.error).toBe("Something went wrong");
+
+			spy.mockRestore();
+		});
+
+		it("should NOT detect error: in middle of response as CLI error", async () => {
+			// "error:" appearing in middle of valid response should not be treated as error
+			const spy = spyOn(baseModule, "execCommand").mockResolvedValue({
+				stdout: `Here's the fix for the code:
+The function should handle the error: connection timeout case
+And also the error: file not found case
+model-name 1000 in, 500 out, 200 cached`,
+				stderr: "",
+				exitCode: 0,
+			});
+
+			const result = await engine.execute("test", testWorkDir);
+
+			expect(result.success).toBe(true);
+			expect(result.response).toContain("error: connection timeout");
 
 			spy.mockRestore();
 		});
