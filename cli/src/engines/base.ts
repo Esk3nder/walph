@@ -152,12 +152,70 @@ export function checkForErrors(output: string): string | null {
 }
 
 /**
+ * Extract authentication error message from stream-json output.
+ * Looks for error type messages or result messages with authentication-related keywords.
+ * Returns the clean error message if found, null otherwise.
+ */
+export function extractAuthenticationError(output: string): string | null {
+	const lines = output.split("\n").filter(Boolean);
+
+	for (const line of lines) {
+		try {
+			const parsed = JSON.parse(line);
+
+			// Check if this is any kind of error response
+			if (parsed.type === "error" || parsed.is_error === true || parsed.error === "authentication_failed") {
+				// Extract message from content array (assistant type) or standard fields
+				let message = "";
+				const content = parsed.message?.content;
+				if (Array.isArray(content)) {
+					const textItem = content.find((item: { type?: string; text?: string }) => item.type === "text" && item.text);
+					if (textItem) message = textItem.text;
+				}
+				if (!message) {
+					message = parsed.result || parsed.error?.message || parsed.message || "";
+				}
+
+				if (message && isAuthenticationMessage(message.toLowerCase())) {
+					return message;
+				}
+			}
+		} catch {
+			// Ignore non-JSON lines
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Check if a message contains authentication-related keywords
+ */
+function isAuthenticationMessage(messageLower: string): boolean {
+	return (
+		messageLower.includes("invalid api key") ||
+		messageLower.includes("authentication") ||
+		messageLower.includes("not authenticated") ||
+		messageLower.includes("unauthorized") ||
+		messageLower.includes("/login")
+	);
+}
+
+/**
  * Format a command failure with useful output context.
+ * If the output contains an authentication error, returns just that error message.
+ * Otherwise returns the full error with output context.
  */
 export function formatCommandError(exitCode: number, output: string): string {
 	const trimmed = output.trim();
 	if (!trimmed) {
 		return `Command failed with exit code ${exitCode}`;
+	}
+
+	// Check for authentication errors first - return the clean message if found
+	const authError = extractAuthenticationError(output);
+	if (authError) {
+		return authError;
 	}
 
 	const lines = trimmed.split("\n").filter(Boolean);
