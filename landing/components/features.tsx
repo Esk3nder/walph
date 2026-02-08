@@ -26,7 +26,8 @@ export function Features() {
           <p>
             <strong className="text-neutral-800">Project rules.</strong> Define
             rules and boundaries in <code>.ralphy/</code>. The AI follows your
-            conventions: "use TypeScript", "never modify migrations", etc.
+            conventions: &quot;use TypeScript&quot;,
+            &quot;never modify migrations&quot;, etc.
           </p>
 
           <p>
