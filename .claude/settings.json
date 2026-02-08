@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "command": "python3 .claude/hooks/milestone-gate.py"
+      },
+      {
+        "matcher": "Write|Edit",
+        "command": "python3 .claude/hooks/tdd-lock.py"
+      },
+      {
+        "matcher": "Bash",
+        "command": "python3 .claude/hooks/merge-gate.py"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "python3 .claude/hooks/burndown-reminder.py"
+      },
+      {
+        "matcher": "Write|Edit",
+        "command": "python3 .claude/hooks/refactor-warn.py"
+      }
+    ]
+  }
+}
