@@ -41,11 +41,7 @@ export interface ExecutionOptions {
 	/** GitHub issue number to sync PRD with on each iteration */
 	syncIssue?: number;
 	/** Custom branch creator (default: createTaskBranch) */
-	branchCreator?: (
-		task: string,
-		baseBranch: string,
-		workDir: string,
-	) => Promise<string>;
+	branchCreator?: (task: string, baseBranch: string, workDir: string) => Promise<string>;
 	/** Transform prompt before execution */
 	promptEnhancer?: (prompt: string, task: Task) => string;
 }

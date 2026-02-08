@@ -32,12 +32,18 @@ export async function rmRF(path: string): Promise<void> {
 			// Using force: true and recursive: true is standard
 			rmSync(path, { recursive: true, force: true });
 			return;
-		} catch (err: any) {
-			const isLockError = err.code === "EBUSY" || err.code === "EPERM" || err.code === "ENOTEMPTY";
+		} catch (err: unknown) {
+			const errorCode =
+				typeof err === "object" && err !== null && "code" in err
+					? String((err as { code?: unknown }).code)
+					: "";
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			const isLockError =
+				errorCode === "EBUSY" || errorCode === "EPERM" || errorCode === "ENOTEMPTY";
 
 			if (isLockError && i < retries - 1) {
 				// Wait with exponential backoff: 500, 1000, 2000, 4000...
-				const delay = 500 * Math.pow(2, i);
+				const delay = 500 * 2 ** i;
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				continue;
 			}
@@ -46,7 +52,7 @@ export async function rmRF(path: string): Promise<void> {
 			// For non-lock errors (any time), throw immediately.
 			if (isLockError && i === retries - 1) {
 				logWarn(
-					`Failed to clean up ${path} after ${retries} attempts: ${err.message}. This may be due to a file lock. Proceeding anyway.`,
+					`Failed to clean up ${path} after ${retries} attempts: ${errorMessage}. This may be due to a file lock. Proceeding anyway.`,
 				);
 			} else {
 				throw err;
@@ -250,9 +256,8 @@ export function verifySandboxIsolation(sandboxDir: string, symlinkDirs: string[]
 		if (existsSync(sandboxPath)) {
 			try {
 				const stat = lstatSync(sandboxPath);
-				if (stat.isSymbolicLink()) {
-					// Good - it's a symlink
-					continue;
+				if (!stat.isSymbolicLink()) {
+					return false;
 				}
 			} catch {
 				// Error checking - assume not isolated

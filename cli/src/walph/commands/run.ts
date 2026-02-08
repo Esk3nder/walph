@@ -29,10 +29,7 @@ import { buildActiveSettings } from "../../ui/settings.ts";
 /**
  * Run the PRD loop with milestone branches per task (walph mode)
  */
-export async function runWalphLoop(
-	options: RuntimeOptions,
-	noMilestone = false,
-): Promise<void> {
+export async function runWalphLoop(options: RuntimeOptions, noMilestone = false): Promise<void> {
 	const workDir = process.cwd();
 	const startTime = Date.now();
 	const config = loadConfig(workDir);
@@ -184,9 +181,7 @@ export async function runWalphLoop(
 	console.log(`  Failed:    ${result.tasksFailed}`);
 	console.log(`  Duration:  ${formatDuration(duration)}`);
 	if (result.totalInputTokens > 0 || result.totalOutputTokens > 0) {
-		console.log(
-			`  Tokens:    ${formatTokens(result.totalInputTokens, result.totalOutputTokens)}`,
-		);
+		console.log(`  Tokens:    ${formatTokens(result.totalInputTokens, result.totalOutputTokens)}`);
 	}
 	console.log("=".repeat(50));
 

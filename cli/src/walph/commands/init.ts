@@ -16,7 +16,9 @@ export async function runWalphInit(): Promise<void> {
 	console.log("");
 
 	if (detected.language) {
-		console.log(`  Detected: ${detected.language}${detected.framework ? ` (${detected.framework})` : ""}`);
+		console.log(
+			`  Detected: ${detected.language}${detected.framework ? ` (${detected.framework})` : ""}`,
+		);
 	}
 
 	console.log("");

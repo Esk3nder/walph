@@ -28,7 +28,7 @@
 		"build:walph:linux-arm64": "bun run version:generate && bun build src/walph/index.ts --compile --minify --target=bun-linux-arm64 --outfile dist/walph-linux-arm64",
 		"build:walph:windows-x64": "bun run version:generate && bun build src/walph/index.ts --compile --minify --target=bun-windows-x64 --outfile dist/walph-windows-x64.exe",
 		"build:walph:all": "bun run version:generate && bun run build:walph:darwin-arm64 && bun run build:walph:darwin-x64 && bun run build:walph:linux-x64 && bun run build:walph:linux-arm64 && bun run build:walph:windows-x64",
-		"check": "biome check --write .",
+		"check": "biome check .",
 		"test": "bun test",
 		"prepublishOnly": "bun run build:all"
 	},
