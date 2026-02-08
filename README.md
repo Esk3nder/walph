@@ -32,6 +32,25 @@ Every step is enforced by a hook. The agent physically cannot skip steps.
 | `burndown-reminder.py` | Bash | Reminds to update `PROJECT_PLAN.md` after successful merge |
 | `refactor-warn.py` | Write, Edit | Warns when a file exceeds 500 lines |
 
+## Quick Start
+
+```bash
+# In your project directory:
+walph --init PRD.md
+```
+
+This will:
+1. Create `.walph/` config and `milestones/.templates/`
+2. Copy walph's `.claude/` hooks into your project
+3. Parse the PRD and create a milestone directory for each task
+4. Generate `PROJECT_PLAN.md` with the full milestone checklist
+
+You can also init without a PRD:
+
+```bash
+walph --init
+```
+
 ## Install
 
 ```bash

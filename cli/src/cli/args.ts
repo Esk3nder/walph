@@ -16,7 +16,7 @@ export function createProgram(name = "ralphy"): Command {
 		)
 		.version(VERSION)
 		.argument("[task]", "Single task to execute (brownfield mode)")
-		.option("--init", "Initialize .ralphy/ configuration")
+		.option("--init [prd]", "Initialize project (optionally with PRD file)")
 		.option("--config", "Show current configuration")
 		.option("--add-rule <rule>", "Add a rule to config")
 		.option("--no-tests, --skip-tests", "Skip running tests")
@@ -68,7 +68,7 @@ export function createProgram(name = "ralphy"): Command {
 export function parseArgs(args: string[]): {
 	options: RuntimeOptions;
 	task: string | undefined;
-	initMode: boolean;
+	initMode: boolean | string;
 	showConfig: boolean;
 	addRule: string | undefined;
 } {

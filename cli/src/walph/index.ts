@@ -20,7 +20,8 @@ async function main(): Promise<void> {
 
 		// Handle --init
 		if (initMode) {
-			await runWalphInit();
+			const prdFile = typeof initMode === "string" ? initMode : undefined;
+			await runWalphInit(prdFile);
 			return;
 		}
 

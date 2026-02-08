@@ -25,7 +25,7 @@ export function createWalphProgram() {
 export function parseWalphArgs(args: string[]): {
 	options: RuntimeOptions;
 	task: string | undefined;
-	initMode: boolean;
+	initMode: boolean | string;
 	showConfig: boolean;
 	addRule: string | undefined;
 	noMilestone: boolean;

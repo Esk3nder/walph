@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { detectProject } from "../config/detector.ts";
 
 export const WALPH_DIR = ".walph";
@@ -134,4 +134,53 @@ boundaries:
 	}
 
 	return { created: true, detected };
+}
+
+/**
+ * Recursively copy files from source to target, skipping existing files.
+ */
+function copyDirNoOverwrite(source: string, target: string): number {
+	let copied = 0;
+	mkdirSync(target, { recursive: true });
+
+	const entries = readdirSync(source, { withFileTypes: true });
+	for (const entry of entries) {
+		const srcPath = join(source, entry.name);
+		const destPath = join(target, entry.name);
+
+		if (entry.isDirectory()) {
+			copied += copyDirNoOverwrite(srcPath, destPath);
+		} else {
+			if (!existsSync(destPath)) {
+				copyFileSync(srcPath, destPath);
+				copied++;
+			}
+		}
+	}
+	return copied;
+}
+
+/**
+ * Copy .claude/ directory (hooks, settings, rules, skills) from walph repo to target project.
+ * Skips if source and target are the same directory.
+ * Does not overwrite existing files.
+ */
+export function copyClaudeHooks(workDir: string): { copied: number } {
+	// Navigate from cli/src/walph/ to repo root
+	const walphRoot = resolve(import.meta.dirname, "..", "..", "..");
+	const sourceDir = join(walphRoot, ".claude");
+	const targetDir = join(workDir, ".claude");
+
+	// Skip if source doesn't exist
+	if (!existsSync(sourceDir) || !statSync(sourceDir).isDirectory()) {
+		return { copied: 0 };
+	}
+
+	// Skip if source === target (already in walph repo)
+	if (resolve(sourceDir) === resolve(targetDir)) {
+		return { copied: 0 };
+	}
+
+	const copied = copyDirNoOverwrite(sourceDir, targetDir);
+	return { copied };
 }
