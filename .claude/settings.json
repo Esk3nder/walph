@@ -12,6 +12,10 @@
       {
         "matcher": "Bash",
         "command": "python3 .claude/hooks/merge-gate.py"
+      },
+      {
+        "matcher": "Write|Edit",
+        "command": "bash .claude/hooks/skill-reminder.sh"
       }
     ],
     "PostToolUse": [
