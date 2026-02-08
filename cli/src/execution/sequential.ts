@@ -40,6 +40,14 @@ export interface ExecutionOptions {
 	engineArgs?: string[];
 	/** GitHub issue number to sync PRD with on each iteration */
 	syncIssue?: number;
+	/** Custom branch creator (default: createTaskBranch) */
+	branchCreator?: (
+		task: string,
+		baseBranch: string,
+		workDir: string,
+	) => Promise<string>;
+	/** Transform prompt before execution */
+	promptEnhancer?: (prompt: string, task: Task) => string;
 }
 
 export interface ExecutionResult {
@@ -107,7 +115,8 @@ export async function runSequential(options: ExecutionOptions): Promise<Executio
 		let branch: string | null = null;
 		if (branchPerTask && baseBranch) {
 			try {
-				branch = await createTaskBranch(task.title, baseBranch, workDir);
+				const branchFn = options.branchCreator || createTaskBranch;
+				branch = await branchFn(task.title, baseBranch, workDir);
 				logDebug(`Created branch: ${branch}`);
 			} catch (error) {
 				logError(`Failed to create branch: ${error}`);
@@ -115,7 +124,7 @@ export async function runSequential(options: ExecutionOptions): Promise<Executio
 		}
 
 		// Build prompt
-		const prompt = buildPrompt({
+		let prompt = buildPrompt({
 			task: task.body || task.title,
 			autoCommit,
 			workDir,
@@ -124,6 +133,11 @@ export async function runSequential(options: ExecutionOptions): Promise<Executio
 			skipLint,
 			prdFile: options.prdFile,
 		});
+
+		// Apply prompt enhancer if provided
+		if (options.promptEnhancer) {
+			prompt = options.promptEnhancer(prompt, task);
+		}
 
 		// Execute with spinner
 		const spinner = new ProgressSpinner(task.title, activeSettings);

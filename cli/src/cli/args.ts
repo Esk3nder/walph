@@ -6,11 +6,11 @@ import { VERSION } from "../version.ts";
 /**
  * Create the CLI program with all options
  */
-export function createProgram(): Command {
+export function createProgram(name = "ralphy"): Command {
 	const program = new Command();
 
 	program
-		.name("ralphy")
+		.name(name)
 		.description(
 			"Autonomous AI Coding Loop - Supports Claude Code, OpenCode, Codex, Cursor, Qwen-Code, Factory Droid and GitHub Copilot",
 		)

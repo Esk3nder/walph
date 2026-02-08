@@ -11,6 +11,10 @@ interface PromptOptions {
 	skipTests?: boolean;
 	skipLint?: boolean;
 	prdFile?: string;
+	/** Optional milestone context injected as first section */
+	milestoneContext?: string;
+	/** Config directory name for boundaries (default: ".ralphy") */
+	configDir?: string;
 }
 
 /**
@@ -41,9 +45,16 @@ export function buildPrompt(options: PromptOptions): string {
 		skipTests = false,
 		skipLint = false,
 		prdFile,
+		milestoneContext,
+		configDir = ".ralphy",
 	} = options;
 
 	const parts: string[] = [];
+
+	// Add milestone context as first section if provided
+	if (milestoneContext) {
+		parts.push(milestoneContext);
+	}
 
 	// Add project context if available
 	const context = loadProjectContext(workDir);
@@ -72,7 +83,7 @@ export function buildPrompt(options: PromptOptions): string {
 	const userBoundaries = loadBoundaries(workDir);
 	const systemBoundaries = [
 		prdFile || "the PRD file",
-		".ralphy/progress.txt",
+		`${configDir}/progress.txt`,
 		".ralphy-worktrees",
 		".ralphy-sandboxes",
 	];
