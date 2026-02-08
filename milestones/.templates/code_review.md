@@ -21,6 +21,12 @@
 - [ ] No commented-out code
 - [ ] Minimal inline comments
 
+## Debugging History
+- Bug: [description]
+- Root cause: [one sentence]
+- Fix: [what changed]
+- Verified: [ ] Yes
+
 ## Issues Found
 [List P0/P1/P2 issues]
 

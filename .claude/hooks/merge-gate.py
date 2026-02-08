@@ -3,10 +3,11 @@
 merge-gate.py - Block merge/push to main without required files
 
 PreToolUse hook that enforces:
-1. code_review.md exists for the current milestone
-2. scope.md exists for the current milestone
+1. scope.md exists for the current milestone
+2. code_review.md exists for the current milestone
+3. verification.md exists for the current milestone
 
-This ensures every merge is properly reviewed and scoped.
+This ensures every merge is properly scoped, reviewed, and verified.
 """
 
 import json
@@ -107,6 +108,9 @@ def main():
     if not check_file_exists(milestone_name, "code_review.md"):
         missing.append(f"  - milestones/{milestone_name}/code_review.md")
 
+    if not check_file_exists(milestone_name, "verification.md"):
+        missing.append(f"  - milestones/{milestone_name}/verification.md")
+
     if missing:
         response = {
             "decision": "block",
@@ -115,7 +119,8 @@ def main():
                 + "\n".join(missing) + "\n\n"
                 "Create these files before merging:\n"
                 f"1. scope.md - Copy from milestones/.templates/scope.md\n"
-                f"2. code_review.md - Document the code review findings"
+                f"2. code_review.md - Document the code review findings\n"
+                f"3. verification.md - Paste actual test/lint/build output"
             )
         }
         print(json.dumps(response))

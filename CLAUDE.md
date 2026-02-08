@@ -48,6 +48,88 @@ If yes, **simplify**.
 - Break complex work into discrete, testable units
 - Each micro task should be completable in one focused session
 
+## Debugging Protocol
+
+### Iron Law
+No fixes without root cause investigation first. Never propose a fix before tracing the data flow.
+
+### Four Phases
+1. **Root Cause Investigation** — Read the code path, trace the data, understand the failure
+2. **Pattern Analysis** — Is this a known pattern? Have we seen similar bugs?
+3. **Hypothesis Testing** — Form a single hypothesis, test it, confirm or reject
+4. **Implementation** — Fix the root cause, not the symptom
+
+### Red Flags
+- Proposing a fix before reading the failing code path
+- Making multiple simultaneous changes ("let me try A and B and C")
+- 3+ failed fix attempts → stop and question the architecture
+- "Each fix reveals a new problem in a different place" → architectural issue, raise explicitly
+
+## Verification Before Completion
+
+### Iron Law
+No completion claims without fresh verification evidence. Never say "should work now" or "I'm confident this fixes it."
+
+### Gate Sequence
+1. **IDENTIFY** — What needs to be verified (tests, lint, build)?
+2. **RUN** — Execute the actual commands
+3. **READ** — Read the full output, don't skim
+4. **VERIFY** — Confirm all checks pass with zero errors
+5. **CLAIM** — Only then claim completion
+
+### Prohibited Phrases
+- "should work now"
+- "I'm confident"
+- "this should fix it"
+- "tests should pass"
+
+### Regression Testing (bug fixes)
+1. Write the fix → run tests (pass)
+2. Revert the fix → run tests (MUST fail — confirms test catches the bug)
+3. Restore the fix → run tests (pass)
+
+### Merge Gate
+The merge gate requires `verification.md` with pasted command output. Use the template in `milestones/.templates/verification.md`.
+
+## Task Orchestration
+
+### When to Use Subagents
+When 3+ independent subtasks exist, consider dispatching subagents to work in parallel.
+
+### How to Dispatch
+- Group subtasks by problem domain
+- Write a self-contained brief per agent (context, requirements, constraints)
+- Subagents share the milestone branch (no worktrees)
+
+### Two-Stage Review
+1. **Spec compliance** — Does the output match the brief?
+2. **Code quality** — Does it meet code standards?
+
+Never combine these two stages.
+
+### When NOT to Use Subagents
+- Sequential dependencies between tasks
+- Shared mutable state
+- Simple tasks (< 3 independent streams)
+- Exploratory or investigative work
+
+## Planning Discipline
+
+### When to Plan
+For non-trivial tasks (multi-file changes, new features), write `milestones/{name}/plan.md` before coding.
+
+### How to Plan
+- Ask one clarifying question at a time (not question dumps)
+- Present 2-3 approaches with trade-offs, recommended first
+- Apply YAGNI ruthlessly — do not plan for hypothetical future requirements
+
+### Plan Structure
+1. Problem statement
+2. Proposed approach (with alternatives)
+3. Out of scope
+4. Implementation sequence
+5. Risks and mitigations
+
 ## Legacy and Technical Debt
 
 This codebase will outlive you. Every shortcut you take becomes someone else's burden. Every hack compounds into technical debt that slows the whole team down.

@@ -9,7 +9,7 @@ Built on top of [Ralphy](https://github.com/michaelshimeles/ralphy) for the auto
 Walph adds Claude Code hooks that enforce a structured development workflow:
 
 ```
-branch → scope → write tests → lock tests → implement → review → merge → update burndown
+branch → scope → plan → write tests → lock tests → implement → verify → review → merge → update burndown
 ```
 
 Every step is enforced by a hook. The agent physically cannot skip steps.
@@ -22,7 +22,7 @@ Every step is enforced by a hook. The agent physically cannot skip steps.
 |------|---------|-------------|
 | `milestone-gate.py` | Write, Edit | Blocks code changes outside `milestone/*` branches |
 | `tdd-lock.py` | Write, Edit | Blocks test file modification after initial commit (unless in a dedicated test-fix commit) |
-| `merge-gate.py` | Bash | Blocks merge/push to main without `scope.md` and `code_review.md` |
+| `merge-gate.py` | Bash | Blocks merge/push to main without `scope.md`, `code_review.md`, and `verification.md` |
 
 ### PostToolUse (inject context)
 
@@ -93,23 +93,27 @@ If a test genuinely has a bug:
 1. Commit implementation changes first
 2. Fix the test in a separate commit: `fix(test): correct expected value`
 
-### 5. Code review
+### 5. Verify
+
+Create `milestones/001-user-auth/verification.md` (use the template in `milestones/.templates/verification.md`). Paste actual test, lint, and build output — not summaries.
+
+### 6. Code review
 
 Create `milestones/001-user-auth/code_review.md` (use the template in `milestones/.templates/code_review.md`).
 
-### 6. Merge
+### 7. Merge
 
 ```bash
 git checkout main
 git merge milestone/001-user-auth
 ```
 
-The merge gate checks that both `scope.md` and `code_review.md` exist. If either is missing, the merge is blocked.
+The merge gate checks that `scope.md`, `code_review.md`, and `verification.md` all exist. If any is missing, the merge is blocked.
 
 After a successful merge, the burndown reminder fires:
 > "Milestone merged! Update PROJECT_PLAN.md to mark this milestone complete."
 
-### 7. Repeat
+### 8. Repeat
 
 Create the next milestone branch and start again.
 
@@ -129,8 +133,10 @@ milestones/
   .templates/
     scope.md                 # Template for milestone specs
     code_review.md           # Template for code reviews
+    verification.md          # Template for verification evidence
   001-feature-name/
     scope.md                 # Your spec
+    verification.md          # Your verification evidence
     code_review.md           # Your review
 
 PROJECT_PLAN.md              # Burndown checklist

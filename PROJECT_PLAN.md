@@ -19,7 +19,15 @@ TDD-enforced milestone workflow for Claude Code with hard gates.
 ### Phase 4: Integration Testing
 - [x] E2E test of full milestone workflow
 
+### Phase 5: Superpowers Absorption
+- [x] 006-superpowers - Absorb debugging, verification, orchestration, and planning disciplines
+  - Extended merge-gate.py to require verification.md
+  - Added verification.md template
+  - Added Decomposition section to scope.md template
+  - Added Debugging History section to code_review.md template
+  - Added Debugging Protocol, Verification, Task Orchestration, and Planning Discipline to CLAUDE.md
+
 ## Backlog
-- [ ] 006-scope-validation - Require scope.md before first write
-- [ ] 007-code-review-generator - Auto-generate reviews
-- [ ] 008-progress-dashboard - Display milestone status on session start
+- [ ] 007-scope-validation - Require scope.md before first write
+- [ ] 008-code-review-generator - Auto-generate reviews
+- [ ] 009-progress-dashboard - Display milestone status on session start
