@@ -23,6 +23,7 @@ Every step is enforced by a hook. The agent physically cannot skip steps.
 | `milestone-gate.py` | Write, Edit | Blocks code changes outside `milestone/*` branches |
 | `tdd-lock.py` | Write, Edit | Blocks test file modification after initial commit (unless in a dedicated test-fix commit) |
 | `merge-gate.py` | Bash | Blocks merge/push to main without `scope.md`, `code_review.md`, and `verification.md` |
+| `skill-reminder.sh` | Write, Edit | Reminds agent to invoke relevant skills before writing code |
 
 ### PostToolUse (inject context)
 
@@ -126,8 +127,16 @@ Create the next milestone branch and start again.
     milestone-gate.py        # PreToolUse: branch enforcement
     tdd-lock.py              # PreToolUse: test file protection
     merge-gate.py            # PreToolUse: merge requirements
+    skill-reminder.sh        # PreToolUse: skill invocation reminder
     burndown-reminder.py     # PostToolUse: update reminder
     refactor-warn.py         # PostToolUse: file size warning
+  rules/
+    testing.md               # Testing standards
+    typescript.md            # TypeScript standards
+  skills/
+    react-useeffect/         # React useEffect patterns
+    vercel-react-best-practices/  # Vercel React performance rules
+    web-design-guidelines/   # Web design standards
 
 milestones/
   .templates/
@@ -152,7 +161,8 @@ PROJECT_PLAN.md              # Burndown checklist
     "PreToolUse": [
       { "matcher": "Write|Edit", "command": "python3 .claude/hooks/milestone-gate.py" },
       { "matcher": "Write|Edit", "command": "python3 .claude/hooks/tdd-lock.py" },
-      { "matcher": "Bash",       "command": "python3 .claude/hooks/merge-gate.py" }
+      { "matcher": "Bash",       "command": "python3 .claude/hooks/merge-gate.py" },
+      { "matcher": "Write|Edit", "command": "bash .claude/hooks/skill-reminder.sh" }
     ],
     "PostToolUse": [
       { "matcher": "Bash",       "command": "python3 .claude/hooks/burndown-reminder.py" },
