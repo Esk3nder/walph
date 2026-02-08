@@ -53,11 +53,7 @@ export async function runWalphTask(
 	if (!noMilestone && baseBranch) {
 		try {
 			logInfo("Creating milestone branch...");
-			const { branchName, number, slug } = await createMilestoneBranch(
-				task,
-				baseBranch,
-				workDir,
-			);
+			const { branchName, number, slug } = await createMilestoneBranch(task, baseBranch, workDir);
 			milestoneName = `${number}-${slug}`;
 			logSuccess(`Branch: ${branchName}`);
 

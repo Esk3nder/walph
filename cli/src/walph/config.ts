@@ -65,11 +65,7 @@ boundaries:
 	writeFileSync(join(walphDir, WALPH_CONFIG_FILE), configContent, "utf-8");
 
 	// Create .walph/progress.txt
-	writeFileSync(
-		join(walphDir, WALPH_PROGRESS_FILE),
-		"# Walph Progress Log\n\n",
-		"utf-8",
-	);
+	writeFileSync(join(walphDir, WALPH_PROGRESS_FILE), "# Walph Progress Log\n\n", "utf-8");
 
 	// Create milestones/.templates/ directory
 	const templatesDir = join(workDir, "milestones", ".templates");

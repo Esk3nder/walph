@@ -7,6 +7,8 @@ This prevents ad-hoc changes on main and forces structured milestone workflow.
 """
 
 import json
+import re
+import shlex
 import subprocess
 import sys
 
@@ -25,6 +27,63 @@ def get_current_branch() -> str:
         return ""
 
 
+def normalize_file_path(file_path: str) -> str:
+    """Normalize a potentially shell-extracted file path for policy checks."""
+    normalized = file_path.strip().strip("'\"")
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized.replace("\\", "/")
+
+
+def extract_file_write_target(command: str) -> str:
+    """Extract likely file-write target from a shell command."""
+    redirect_match = re.search(r">>?\s*([^\s;&|]+)", command)
+    if redirect_match:
+        return normalize_file_path(redirect_match.group(1))
+
+    # Split chained commands so parsing can remain simple and stdlib-only.
+    parts = [part.strip() for part in re.split(r"\s*(?:&&|\|\||;|\|)\s*", command) if part.strip()]
+    for part in parts:
+        try:
+            tokens = shlex.split(part)
+        except ValueError:
+            continue
+
+        if not tokens:
+            continue
+
+        cmd = tokens[0]
+        args = tokens[1:]
+        positional = [arg for arg in args if not arg.startswith("-")]
+
+        if cmd in ("cp", "mv") and len(positional) >= 2:
+            return normalize_file_path(positional[-1])
+
+        if cmd == "touch" and positional:
+            return normalize_file_path(positional[0])
+
+        if cmd == "tee" and positional:
+            return normalize_file_path(positional[0])
+
+        if cmd == "sed" and any(arg == "-i" or arg.startswith("-i") for arg in args):
+            sed_targets = []
+            skip_next = False
+            for arg in args:
+                if skip_next:
+                    skip_next = False
+                    continue
+                if arg in ("-e", "-f"):
+                    skip_next = True
+                    continue
+                if arg.startswith("-"):
+                    continue
+                sed_targets.append(arg)
+            if sed_targets:
+                return normalize_file_path(sed_targets[-1])
+
+    return ""
+
+
 def main():
     # Read hook input from stdin
     try:
@@ -35,13 +94,18 @@ def main():
 
     tool_name = hook_input.get("tool_name", "")
 
-    # Only check Write and Edit tools
-    if tool_name not in ("Write", "Edit"):
+    # Only check Write/Edit or Bash file-write operations.
+    if tool_name not in ("Write", "Edit", "Bash"):
         sys.exit(0)
 
-    # Get file path being written
     tool_input = hook_input.get("tool_input", {})
-    file_path = tool_input.get("file_path", "")
+    if tool_name == "Bash":
+        command = tool_input.get("command", "")
+        file_path = extract_file_write_target(command)
+        if not file_path:
+            sys.exit(0)
+    else:
+        file_path = normalize_file_path(tool_input.get("file_path", ""))
 
     # Allow writes to milestones/ directory (scope.md, code_review.md, etc.)
     if "/milestones/" in file_path or file_path.startswith("milestones/"):

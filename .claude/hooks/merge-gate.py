@@ -38,16 +38,26 @@ def extract_milestone_name(branch: str) -> str:
     return ""
 
 
-def is_merge_or_push_to_main(command: str) -> bool:
+def is_merge_or_push_to_main(command: str, current_branch: str) -> bool:
     """Check if command is merging or pushing to main/master."""
+    if current_branch in ("main", "master") and re.search(r"\bgit\s+merge\b", command, re.IGNORECASE):
+        return True
+
     # Patterns that indicate merge to main
     merge_patterns = [
-        r"git\s+merge\s+.*main",
-        r"git\s+merge\s+.*master",
-        r"git\s+push\s+.*main",
-        r"git\s+push\s+.*master",
-        r"git\s+checkout\s+main\s*&&.*merge",
-        r"git\s+checkout\s+master\s*&&.*merge",
+        r"\bgit\s+merge\s+.*\bmain\b",
+        r"\bgit\s+merge\s+.*\bmaster\b",
+        r"\bgit\s+push\s+.*\bmain\b",
+        r"\bgit\s+push\s+.*\bmaster\b",
+        r"\bgit\s+push\s+origin\s+HEAD:main\b",
+        r"\bgit\s+push\s+origin\s+HEAD:master\b",
+        r"\bgit\s+(?:checkout|switch)\s+main\b\s*(?:&&|;)\s*.*\bgit\s+merge\b",
+        r"\bgit\s+(?:checkout|switch)\s+master\b\s*(?:&&|;)\s*.*\bgit\s+merge\b",
+        r"\bgh\s+pr\s+merge\b",
+        r"\bgit\s+pull\s+origin\s+main\b",
+        r"\bgit\s+pull\s+origin\s+master\b",
+        r"\bgit\s+rebase\s+origin/main\b",
+        r"\bgit\s+rebase\s+origin/master\b",
     ]
 
     for pattern in merge_patterns:
@@ -56,10 +66,33 @@ def is_merge_or_push_to_main(command: str) -> bool:
     return False
 
 
-def check_file_exists(milestone_name: str, filename: str) -> bool:
-    """Check if a file exists in the milestone directory."""
+def check_file_exists(milestone_name: str, filename: str) -> tuple[bool, str]:
+    """Validate required milestone file existence and minimum content quality."""
     path = os.path.join("milestones", milestone_name, filename)
-    return os.path.isfile(path)
+    display_path = f"milestones/{milestone_name}/{filename}"
+
+    if not os.path.isfile(path):
+        return (False, f"{display_path} is missing")
+
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            content = handle.read()
+    except Exception as error:
+        return (False, f"{display_path} could not be read: {error}")
+
+    if len(content.strip().encode("utf-8")) < 100:
+        return (False, f"{display_path} is too short (needs at least 100 bytes of non-whitespace content)")
+
+    if filename == "verification.md":
+        required_headers = ["## Test Results", "## Lint Results", "## Verdict"]
+        missing_headers = [header for header in required_headers if header not in content]
+        if missing_headers:
+            return (
+                False,
+                f"{display_path} is missing required sections: {', '.join(missing_headers)}",
+            )
+
+    return (True, "")
 
 
 def main():
@@ -78,12 +111,13 @@ def main():
     tool_input = hook_input.get("tool_input", {})
     command = tool_input.get("command", "")
 
-    # Only check merge/push to main
-    if not is_merge_or_push_to_main(command):
+    branch = get_current_branch()
+
+    # Only check merge/push/rebase flows touching main
+    if not is_merge_or_push_to_main(command, branch):
         sys.exit(0)
 
     # Get current milestone
-    branch = get_current_branch()
     milestone_name = extract_milestone_name(branch)
 
     if not milestone_name:
@@ -101,21 +135,16 @@ def main():
 
     # Check required files
     missing = []
-
-    if not check_file_exists(milestone_name, "scope.md"):
-        missing.append(f"  - milestones/{milestone_name}/scope.md")
-
-    if not check_file_exists(milestone_name, "code_review.md"):
-        missing.append(f"  - milestones/{milestone_name}/code_review.md")
-
-    if not check_file_exists(milestone_name, "verification.md"):
-        missing.append(f"  - milestones/{milestone_name}/verification.md")
+    for filename in ("scope.md", "code_review.md", "verification.md"):
+        is_valid, error_message = check_file_exists(milestone_name, filename)
+        if not is_valid:
+            missing.append(f"  - {error_message}")
 
     if missing:
         response = {
             "decision": "block",
             "reason": (
-                f"Cannot merge milestone '{milestone_name}' - missing required files:\n\n"
+                f"Cannot merge milestone '{milestone_name}' - required docs are incomplete:\n\n"
                 + "\n".join(missing) + "\n\n"
                 "Create these files before merging:\n"
                 f"1. scope.md - Copy from milestones/.templates/scope.md\n"
